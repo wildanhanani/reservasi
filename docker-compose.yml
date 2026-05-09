@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reservasi_postgres
+    environment:
+      POSTGRES_USER: reservasi
+      POSTGRES_PASSWORD: reservasi
+      POSTGRES_DB: reservasi
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

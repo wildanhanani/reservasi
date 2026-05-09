@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  RESTAURANT_ADMIN
+  CUSTOMER
+}
+
+enum ReservationStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  PAYMENT_REVIEW
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentType {
+  FULL
+  DP
+}
+
+enum PaymentMethod {
+  QRIS
+  TRANSFER
+  CASH
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING_REVIEW
+  PARTIALLY_PAID
+  PAID
+  REJECTED
+}
+
+model User {
+  id           String        @id @default(cuid())
+  role         Role
+  name         String
+  email        String        @unique
+  phone        String?
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  restaurants  Restaurant[]  @relation("RestaurantOwner")
+  adminProfile AdminProfile?
+}
+
+model AdminProfile {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  restaurantId String
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Restaurant {
+  id                 String             @id @default(cuid())
+  ownerId            String
+  owner              User               @relation("RestaurantOwner", fields: [ownerId], references: [id])
+  name               String
+  slug               String             @unique
+  description        String
+  address            String
+  phone              String
+  whatsappNumber     String
+  qrisImageUrl       String?
+  bankName           String?
+  bankAccountNumber  String?
+  bankAccountName    String?
+  cashInstruction    String             @default("Bayar di kasir saat datang ke restoran.")
+  dpPercentage       Int                @default(30)
+  maxPartySize       Int                @default(12)
+  slotDurationMinute Int                @default(90)
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  admins             AdminProfile[]
+  menuItems          MenuItem[]
+  operatingHours     OperatingHour[]
+  reservationSlots   ReservationSlot[]
+  reservations       Reservation[]
+}
+
+model OperatingHour {
+  id           String     @id @default(cuid())
+  restaurantId String
+  dayOfWeek    Int
+  openTime     String
+  closeTime    String
+  isClosed     Boolean    @default(false)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, dayOfWeek])
+}
+
+model ReservationSlot {
+  id           String     @id @default(cuid())
+  restaurantId String
+  date         DateTime
+  time         String
+  capacity     Int
+  isBlocked    Boolean    @default(false)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, date, time])
+}
+
+model MenuItem {
+  id           String            @id @default(cuid())
+  restaurantId String
+  name         String
+  description  String
+  category     String
+  price        Int
+  isAvailable  Boolean           @default(true)
+  imageUrl     String?
+  restaurant   Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        ReservationItem[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model Reservation {
+  id             String            @id @default(cuid())
+  code           String            @unique
+  restaurantId   String
+  customerName   String
+  customerPhone  String
+  customerEmail  String?
+  contactPerson  String
+  sourceChannel  String
+  partySize      Int
+  reservationAt  DateTime
+  notes          String?
+  status         ReservationStatus @default(DRAFT)
+  subtotal       Int               @default(0)
+  paymentAmount  Int               @default(0)
+  receiptUrl     String?
+  restaurant     Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items          ReservationItem[]
+  payment        Payment?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model ReservationItem {
+  id            String      @id @default(cuid())
+  reservationId String
+  menuItemId    String
+  nameSnapshot  String
+  priceSnapshot Int
+  quantity      Int
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  menuItem      MenuItem    @relation(fields: [menuItemId], references: [id])
+
+  @@unique([reservationId, menuItemId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  reservationId String        @unique
+  type          PaymentType
+  method        PaymentMethod
+  status        PaymentStatus @default(UNPAID)
+  amountDue     Int
+  amountPaid    Int           @default(0)
+  proofUrl      String?
+  reviewedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  reservation   Reservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 40% 98%;
+  --foreground: 222 47% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 8%;
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 215 16% 42%;
+  --accent: 231 88% 66%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 90%;
+  --input: 220 13% 90%;
+  --ring: 231 88% 66%;
+}
+
+* {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.12), transparent 32rem),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv01", "ss03";
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@layer components {
+  .input {
+    @apply h-11 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 disabled:bg-slate-100 sm:h-10 sm:text-sm;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-11 items-center justify-center rounded-2xl bg-[#533afd] px-5 text-sm font-semibold text-white shadow-[rgba(50,50,93,0.25)_0px_18px_35px_-18px] transition hover:-translate-y-0.5 hover:bg-[#4434d4] hover:shadow-lg disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:h-10;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-11 items-center justify-center rounded-2xl border border-[#d6d9fc] bg-white/90 px-5 text-sm font-semibold text-[#533afd] shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50 sm:h-10;
+  }
+
+  .qty-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50;
+  }
+}
