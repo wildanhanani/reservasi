@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma, PaymentMethod, PaymentType, ReservationStatus } from "@reservasi/db";
-import { assertSlotAvailable, getAvailableSlots, reservationDateTime } from "../services/availability.js";
-import { adminPaymentReviewMessage, sendWhatsApp } from "../services/whatsapp.js";
+import { assertSlotAvailable, getAvailableSlots, isRestaurantClosed, reservationDateTime } from "../services/availability.js";
+import { receiptEmailMessage, sendEmail } from "../services/email.js";
+import { adminPaymentReviewMessage, customerReceiptMessage, sendWhatsApp } from "../services/whatsapp.js";
 
 const restaurantParams = z.object({ slug: z.string().min(1) });
 const reservationParams = z.object({ code: z.string().min(6) });
@@ -13,14 +14,14 @@ const availabilityBody = z.object({
 });
 
 const createReservationBody = z.object({
-  customerName: z.string().min(2),
-  customerPhone: z.string().min(8),
-  customerEmail: z.string().email().optional().or(z.literal("")),
-  contactPerson: z.string().min(2),
-  sourceChannel: z.enum(["whatsapp", "instagram", "direct"]),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^\d{2}:\d{2}$/),
-  partySize: z.number().int().min(1).max(100),
+  customerName: z.string().trim().min(2, "Nama customer minimal 2 karakter."),
+  customerPhone: z.string().trim().min(8, "Nomor WhatsApp minimal 8 digit."),
+  customerEmail: z.string().trim().email("Email receipt belum valid."),
+  contactPerson: z.string().trim().min(2).optional().default("Customer"),
+  sourceChannel: z.enum(["whatsapp", "instagram", "direct"]).optional().default("direct"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal reservasi belum valid."),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Jam reservasi belum valid."),
+  partySize: z.number().int().min(1, "Jumlah tamu minimal 1.").max(100, "Jumlah tamu terlalu banyak."),
   notes: z.string().optional()
 });
 
@@ -60,6 +61,19 @@ function makeCode() {
 
 function receiptUrl(code: string) {
   return `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/receipt/${code}`;
+}
+
+function reservationDate(reservationAt: Date) {
+  return reservationAt.toISOString().slice(0, 10);
+}
+
+async function ensureReservationStillBookable(reservation: { restaurantId: string; reservationAt: Date }) {
+  const date = reservationDate(reservation.reservationAt);
+  if (await isRestaurantClosed(reservation.restaurantId, date)) {
+    return "Tanggal reservasi ini sudah ditandai libur oleh restoran. Silakan pilih tanggal lain.";
+  }
+
+  return null;
 }
 
 export async function publicRoutes(app: FastifyInstance) {
@@ -106,7 +120,11 @@ export async function publicRoutes(app: FastifyInstance) {
       return reply.badRequest(`Maksimal tamu untuk reservasi online adalah ${restaurant.maxPartySize}.`);
     }
 
-    await assertSlotAvailable(restaurant.id, body.date, body.time, body.partySize);
+    try {
+      await assertSlotAvailable(restaurant.id, body.date, body.time, body.partySize);
+    } catch {
+      return reply.badRequest("Tanggal atau jam reservasi ini tidak tersedia. Silakan pilih tanggal lain.");
+    }
 
     const reservation = await prisma.reservation.create({
       data: {
@@ -149,6 +167,11 @@ export async function publicRoutes(app: FastifyInstance) {
 
     if (!reservation) {
       return reply.notFound("Reservasi tidak ditemukan.");
+    }
+
+    const unavailableReason = await ensureReservationStillBookable(reservation);
+    if (unavailableReason) {
+      return reply.badRequest(unavailableReason);
     }
 
     const menuItems = await prisma.menuItem.findMany({
@@ -213,6 +236,11 @@ export async function publicRoutes(app: FastifyInstance) {
       return reply.badRequest("Pilih menu terlebih dahulu sebelum memilih pembayaran.");
     }
 
+    const unavailableReason = await ensureReservationStillBookable(reservation);
+    if (unavailableReason) {
+      return reply.badRequest(unavailableReason);
+    }
+
     const amountDue =
       body.type === "DP"
         ? Math.ceil((reservation.subtotal * reservation.restaurant.dpPercentage) / 100)
@@ -258,6 +286,11 @@ export async function publicRoutes(app: FastifyInstance) {
       return reply.notFound("Data pembayaran tidak ditemukan.");
     }
 
+    const unavailableReason = await ensureReservationStillBookable(reservation);
+    if (unavailableReason) {
+      return reply.badRequest(unavailableReason);
+    }
+
     const paymentStatus = reservation.payment.method === "CASH" ? "UNPAID" : "PENDING_REVIEW";
     const reservationStatus = reservation.payment.method === "CASH" ? "AWAITING_PAYMENT" : "PAYMENT_REVIEW";
 
@@ -284,6 +317,31 @@ export async function publicRoutes(app: FastifyInstance) {
         adminUrl: `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/admin`
       })
     });
+
+    const generatedReceiptUrl = updated.receiptUrl ?? receiptUrl(reservation.code);
+    await sendWhatsApp({
+      to: reservation.customerPhone,
+      message: customerReceiptMessage({
+        restaurantName: reservation.restaurant.name,
+        reservationCode: reservation.code,
+        receiptUrl: generatedReceiptUrl,
+        amountDue: updated.paymentAmount
+      })
+    });
+
+    if (reservation.customerEmail) {
+      const email = receiptEmailMessage({
+        restaurantName: reservation.restaurant.name,
+        reservationCode: reservation.code,
+        receiptUrl: generatedReceiptUrl,
+        amountDue: updated.paymentAmount
+      });
+      await sendEmail({
+        to: reservation.customerEmail,
+        subject: email.subject,
+        text: email.text
+      });
+    }
 
     return updated;
   });

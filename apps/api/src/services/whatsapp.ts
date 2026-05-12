@@ -20,6 +20,15 @@ export function customerConfirmationMessage(params: {
   return `Reservasi ${params.restaurantName} sudah terkonfirmasi. Kode: ${params.reservationCode}. Receipt: ${params.receiptUrl}`;
 }
 
+export function customerReceiptMessage(params: {
+  restaurantName: string;
+  reservationCode: string;
+  receiptUrl: string;
+  amountDue: number;
+}) {
+  return `Receipt reservasi ${params.restaurantName} sudah dibuat. Kode: ${params.reservationCode}. Total dibayar: ${params.amountDue}. Link receipt: ${params.receiptUrl}`;
+}
+
 export function adminPaymentReviewMessage(params: {
   restaurantName: string;
   reservationCode: string;

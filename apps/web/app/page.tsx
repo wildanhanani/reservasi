@@ -36,7 +36,7 @@ export default function HomePage() {
     <main className="min-h-screen overflow-hidden bg-[#f6f9fc] text-[#061b31]">
       <section className="relative border-b border-white/70 bg-white">
         <div className="absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_20%_20%,rgba(83,58,253,0.18),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(249,107,238,0.18),transparent_28%)]" />
-        <nav className="relative mx-auto flex max-w-7xl items-center justify-between px-4 py-5 md:px-8">
+        <nav className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:py-5 md:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#533afd] text-white shadow-[rgba(50,50,93,0.25)_0px_18px_35px_-18px]">
               <CalendarCheck2 className="h-5 w-5" />
@@ -51,48 +51,48 @@ export default function HomePage() {
             <a href="#alur" className="hover:text-[#533afd]">Alur</a>
             <a href="#dashboard" className="hover:text-[#533afd]">Dashboard</a>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="rounded-xl border border-[#d6d9fc] bg-white px-4 py-2 text-sm font-medium text-[#533afd] shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-50">
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/login" className="rounded-xl border border-[#d6d9fc] bg-white px-3 py-2 text-sm font-medium text-[#533afd] shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-50 sm:px-4">
               Login
             </Link>
           </div>
         </nav>
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pb-20 pt-12 md:grid-cols-[1fr_460px] md:px-8 md:pb-28 md:pt-20">
+        <div className="relative mx-auto grid max-w-7xl gap-8 px-4 pb-14 pt-8 sm:pb-20 sm:pt-12 md:grid-cols-[minmax(0,1fr)_minmax(320px,460px)] md:px-8 md:pb-28 md:pt-20">
           <div className="max-w-3xl">
             <p className="inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#533afd]">Booking system untuk resto modern</p>
-            <h1 className="mt-6 text-5xl font-light leading-[1.03] tracking-[-0.05em] text-[#061b31] sm:text-6xl lg:text-7xl">
+            <h1 className="mt-5 text-4xl font-light leading-[1.04] tracking-[-0.05em] text-[#061b31] sm:mt-6 sm:text-6xl lg:text-7xl">
               Sistem booking resto yang simple, cepat, dan siap multi-cabang.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg font-light leading-8 text-slate-600">
+            <p className="mt-5 max-w-2xl text-base font-light leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8">
               Kelola reservasi online, pre-order menu, pembayaran QRIS, dashboard admin resto, dan follow-up customer dalam satu sistem yang ringan.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/teras-rempah" className="inline-flex items-center rounded-xl bg-[#533afd] px-5 py-3 text-sm font-semibold text-white shadow-[rgba(50,50,93,0.25)_0px_30px_45px_-30px,rgba(0,0,0,0.1)_0px_18px_36px_-18px] transition hover:-translate-y-0.5 hover:bg-[#4434d4]">
+            <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
+              <Link href="/teras-rempah" className="inline-flex w-full items-center justify-center rounded-xl bg-[#533afd] px-5 py-3 text-sm font-semibold text-white shadow-[rgba(50,50,93,0.25)_0px_30px_45px_-30px,rgba(0,0,0,0.1)_0px_18px_36px_-18px] transition hover:-translate-y-0.5 hover:bg-[#4434d4] sm:w-auto">
                 Lihat demo booking <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
-              <Link href="/login" className="inline-flex items-center rounded-xl border border-[#d6d9fc] bg-white px-5 py-3 text-sm font-semibold text-[#533afd] shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-50">
+              <Link href="/login" className="inline-flex w-full items-center justify-center rounded-xl border border-[#d6d9fc] bg-white px-5 py-3 text-sm font-semibold text-[#533afd] shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-50 sm:w-auto">
                 Masuk dashboard
               </Link>
             </div>
-            <div className="mt-10 grid max-w-xl gap-3 sm:grid-cols-3">
+            <div className="mt-8 grid max-w-xl grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-3">
               <Stat value="Multi" label="resto & path" />
               <Stat value="QRIS" label="payment ready" />
               <Stat value="WA" label="follow-up admin" />
             </div>
           </div>
 
-          <div id="dashboard" className="relative">
+          <div id="dashboard" className="relative min-w-0">
             <div className="rounded-[2rem] border border-[#e5edf5] bg-white p-4 shadow-[rgba(50,50,93,0.25)_0px_30px_45px_-30px,rgba(0,0,0,0.1)_0px_18px_36px_-18px]">
-              <div className="rounded-[1.5rem] bg-[#1c1e54] p-5 text-white">
-                <div className="flex items-center justify-between">
+              <div className="rounded-[1.5rem] bg-[#1c1e54] p-4 text-white sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-white/50">Dashboard hari ini</p>
                     <p className="mt-1 text-xl font-semibold">Teras Rempah</p>
                   </div>
                   <div className="rounded-full bg-emerald-400/20 px-3 py-1 text-xs text-emerald-200">Aktif</div>
                 </div>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="mt-6 grid gap-3 grid-cols-2">
                   <PreviewCard label="Penghasilan" value="Rp222.600" />
                   <PreviewCard label="Reservasi" value="8" />
                   <PreviewCard label="Review bayar" value="3" />
@@ -116,7 +116,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="fitur" className="mx-auto max-w-7xl px-4 py-20 md:px-8">
+      <section id="fitur" className="mx-auto max-w-7xl px-4 py-14 sm:py-20 md:px-8">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#533afd]">Fitur utama</p>
           <h2 className="mt-3 text-3xl font-light tracking-[-0.03em] sm:text-4xl">Semua kebutuhan booking resto dalam satu workflow.</h2>
@@ -132,14 +132,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="alur" className="bg-[#1c1e54] px-4 py-20 text-white md:px-8">
+      <section id="alur" className="bg-[#1c1e54] px-4 py-14 text-white sm:py-20 md:px-8">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[380px_1fr]">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-200">Alur booking</p>
             <h2 className="mt-3 text-3xl font-light tracking-[-0.03em] sm:text-4xl">Dari customer booking sampai admin approve.</h2>
             <p className="mt-4 leading-7 text-white/65">Flow dibuat pendek supaya customer tidak bingung dan admin tetap punya kontrol pembayaran.</p>
           </div>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
               <div key={step} className="rounded-3xl border border-white/10 bg-white/10 p-5">
                 <p className="text-sm text-indigo-200">0{index + 1}</p>
@@ -150,19 +150,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-20 md:px-8">
-        <div className="rounded-[2rem] border border-[#e5edf5] bg-white p-8 shadow-[rgba(50,50,93,0.22)_0px_30px_45px_-30px] md:p-10">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:py-20 md:px-8">
+        <div className="rounded-[2rem] border border-[#e5edf5] bg-white p-5 shadow-[rgba(50,50,93,0.22)_0px_30px_45px_-30px] sm:p-8 md:p-10">
           <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#533afd]">Siap dipakai</p>
               <h2 className="mt-3 text-3xl font-light tracking-[-0.03em] sm:text-4xl">Mulai dari halaman booking resto yang rapi dan mudah dipakai customer.</h2>
               <p className="mt-4 max-w-2xl leading-7 text-slate-600">Setiap resto punya URL booking sendiri dan dashboard admin sendiri. Cocok untuk operasional resto yang ingin reservasi online terlihat profesional.</p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/teras-rempah" className="inline-flex items-center rounded-xl bg-[#533afd] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4434d4]">
+            <div className="grid gap-3 sm:flex sm:flex-wrap">
+              <Link href="/teras-rempah" className="inline-flex w-full items-center justify-center rounded-xl bg-[#533afd] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4434d4] sm:w-auto">
                 Coba booking
               </Link>
-              <Link href="/login" className="inline-flex items-center rounded-xl border border-[#d6d9fc] bg-white px-5 py-3 text-sm font-semibold text-[#533afd] transition hover:bg-indigo-50">
+              <Link href="/login" className="inline-flex w-full items-center justify-center rounded-xl border border-[#d6d9fc] bg-white px-5 py-3 text-sm font-semibold text-[#533afd] transition hover:bg-indigo-50 sm:w-auto">
                 Login admin
               </Link>
             </div>

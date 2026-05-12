@@ -5,12 +5,25 @@ import { customerConfirmationMessage, sendWhatsApp } from "../services/whatsapp.
 import { requireRestaurantAccess } from "../services/auth.js";
 
 const restaurantParams = z.object({ restaurantId: z.string().min(1) });
+const menuParams = z.object({ restaurantId: z.string().min(1), menuItemId: z.string().min(1) });
 const reservationParams = z.object({ reservationId: z.string().min(1) });
 
 const settingsBody = z.object({
   dpPercentage: z.number().int().min(0).max(100).optional(),
   maxPartySize: z.number().int().min(1).max(500).optional(),
   slotDurationMinute: z.number().int().min(15).max(360).optional(),
+  closedDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(120).optional(),
+  operatingHours: z
+    .array(
+      z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        openTime: z.string().regex(/^\d{2}:\d{2}$/),
+        closeTime: z.string().regex(/^\d{2}:\d{2}$/),
+        isClosed: z.boolean()
+      })
+    )
+    .refine((hours) => hours.length === 0 || hours.length === 7, "Jam operasional harus berisi 7 hari.")
+    .optional(),
   qrisImageUrl: z
     .union([
       z.string().url(),
@@ -31,13 +44,31 @@ const slotBody = z.object({
   isBlocked: z.boolean().default(false)
 });
 
+const MAX_MENU_IMAGE_BYTES = 30 * 1024;
+
+function dataUrlBytes(value: string) {
+  const base64 = value.split(",")[1] ?? "";
+  const padding = (base64.match(/=+$/)?.[0].length ?? 0);
+  return Math.floor((base64.length * 3) / 4) - padding;
+}
+
+const menuImageSchema = z
+  .union([
+    z.string().url(),
+    z.string().regex(/^data:image\/(png|jpeg|jpg|webp);base64,/)
+  ])
+  .refine((value) => !value.startsWith("data:image/") || dataUrlBytes(value) <= MAX_MENU_IMAGE_BYTES, {
+    message: "Ukuran gambar menu maksimal 30KB."
+  });
+
 const menuBody = z.object({
   name: z.string().min(2),
   description: z.string().min(2),
   category: z.string().min(2),
+  labels: z.array(z.string().min(1)).max(12).default([]),
   price: z.number().int().min(0),
   isAvailable: z.boolean().default(true),
-  imageUrl: z.string().url().optional().or(z.literal(""))
+  imageUrl: menuImageSchema.optional().or(z.literal(""))
 });
 
 function receiptUrl(code: string) {
@@ -59,6 +90,7 @@ export async function adminRoutes(app: FastifyInstance) {
           include: { items: true, payment: true }
         },
         menuItems: { orderBy: [{ category: "asc" }, { name: "asc" }] },
+        operatingHours: { orderBy: { dayOfWeek: "asc" } },
         reservationSlots: { orderBy: [{ date: "asc" }, { time: "asc" }], take: 80 }
       }
     });
@@ -102,12 +134,31 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!session) return;
 
     const body = settingsBody.parse(request.body);
-    const restaurant = await prisma.restaurant.update({
-      where: { id: restaurantId },
-      data: {
-        ...body,
-        qrisImageUrl: body.qrisImageUrl || null
+    const { operatingHours, qrisImageUrl, ...restaurantSettings } = body;
+
+    const restaurant = await prisma.$transaction(async (tx) => {
+      const updated = await tx.restaurant.update({
+        where: { id: restaurantId },
+        data: {
+          ...restaurantSettings,
+          ...(qrisImageUrl !== undefined ? { qrisImageUrl: qrisImageUrl || null } : {})
+        }
+      });
+
+      if (operatingHours?.length) {
+        for (const hour of operatingHours) {
+          await tx.operatingHour.upsert({
+            where: { restaurantId_dayOfWeek: { restaurantId, dayOfWeek: hour.dayOfWeek } },
+            update: { openTime: hour.openTime, closeTime: hour.closeTime, isClosed: hour.isClosed },
+            create: { restaurantId, dayOfWeek: hour.dayOfWeek, openTime: hour.openTime, closeTime: hour.closeTime, isClosed: hour.isClosed }
+          });
+        }
       }
+
+      return tx.restaurant.findUnique({
+        where: { id: updated.id },
+        include: { operatingHours: { orderBy: { dayOfWeek: "asc" } } }
+      });
     });
 
     return restaurant;
@@ -152,12 +203,44 @@ export async function adminRoutes(app: FastifyInstance) {
     const menu = await prisma.menuItem.create({
       data: {
         restaurantId,
-        ...body,
+        name: body.name,
+        description: body.description,
+        category: body.category,
+        labels: Array.from(new Set(body.labels.map((label) => label.trim()).filter(Boolean))),
+        price: body.price,
+        isAvailable: body.isAvailable,
         imageUrl: body.imageUrl || null
       }
     });
 
     return reply.code(201).send(menu);
+  });
+
+  app.patch("/restaurants/:restaurantId/menu/:menuItemId", async (request, reply) => {
+    const { restaurantId, menuItemId } = menuParams.parse(request.params);
+    const session = await requireRestaurantAccess(request, reply, restaurantId);
+    if (!session) return;
+
+    const existing = await prisma.menuItem.findFirst({ where: { id: menuItemId, restaurantId } });
+    if (!existing) {
+      return reply.code(404).send({ message: "Menu tidak ditemukan." });
+    }
+
+    const body = menuBody.parse(request.body);
+    const menu = await prisma.menuItem.update({
+      where: { id: menuItemId },
+      data: {
+        name: body.name,
+        description: body.description,
+        category: body.category,
+        labels: Array.from(new Set(body.labels.map((label) => label.trim()).filter(Boolean))),
+        price: body.price,
+        isAvailable: body.isAvailable,
+        imageUrl: body.imageUrl || null
+      }
+    });
+
+    return menu;
   });
 
   app.get("/restaurants/:restaurantId/reservations", async (request, reply) => {

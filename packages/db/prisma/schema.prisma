@@ -82,6 +82,7 @@ model Restaurant {
   dpPercentage       Int                @default(30)
   maxPartySize       Int                @default(12)
   slotDurationMinute Int                @default(90)
+  closedDates        String[]           @default([])
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -122,6 +123,7 @@ model MenuItem {
   name         String
   description  String
   category     String
+  labels       String[]          @default([])
   price        Int
   isAvailable  Boolean           @default(true)
   imageUrl     String?

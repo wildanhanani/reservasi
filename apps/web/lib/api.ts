@@ -1,8 +1,17 @@
+export type OperatingHour = {
+  id?: string;
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isClosed: boolean;
+};
+
 export type MenuItem = {
   id: string;
   name: string;
   description: string;
   category: string;
+  labels: string[];
   price: number;
   imageUrl?: string | null;
   isAvailable: boolean;
@@ -24,6 +33,8 @@ export type Restaurant = {
   dpPercentage: number;
   maxPartySize: number;
   slotDurationMinute?: number;
+  closedDates: string[];
+  operatingHours?: OperatingHour[];
   menuItems: MenuItem[];
 };
 
@@ -76,6 +87,12 @@ export type Slot = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+type ApiErrorBody = {
+  message?: string;
+  details?: string[];
+  error?: string;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined;
   const token = typeof window !== "undefined" ? localStorage.getItem("reservasi_token") : null;
@@ -90,8 +107,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request gagal: ${response.status}`);
+    const rawMessage = await response.text();
+    let message = rawMessage || `Request gagal: ${response.status}`;
+
+    try {
+      const parsed = JSON.parse(rawMessage) as ApiErrorBody;
+      if (parsed.details?.length) {
+        message = [parsed.message, ...parsed.details].filter(Boolean).join("\n");
+      } else if (parsed.message) {
+        message = parsed.message;
+      } else if (parsed.error) {
+        message = parsed.error;
+      }
+    } catch {
+      // Fallback ke text response kalau server mengembalikan non-JSON.
+    }
+
+    throw new Error(message);
   }
 
   return response.json() as Promise<T>;
@@ -213,7 +245,7 @@ export type CreateRestaurantBody = {
   description: string;
   address: string;
   phone: string;
-  whatsappNumber: string;
+  whatsappNumber?: string;
 };
 
 export function createRestaurant(body: CreateRestaurantBody) {
@@ -235,6 +267,7 @@ export function getAdminDashboard(restaurantId: string) {
     restaurant: Restaurant & {
       reservations: Reservation[];
       reservationSlots: Array<{ id: string; date: string; time: string; capacity: number; isBlocked: boolean }>;
+      operatingHours: OperatingHour[];
     };
     metrics: {
       upcomingReservations: number;
@@ -270,9 +303,18 @@ export function upsertReservationSlot(
   });
 }
 
-export function addMenuItem(restaurantId: string, body: Omit<MenuItem, "id">) {
+export type MenuItemForm = Omit<MenuItem, "id">;
+
+export function addMenuItem(restaurantId: string, body: MenuItemForm) {
   return request<MenuItem>(`/admin/restaurants/${restaurantId}/menu`, {
     method: "POST",
+    body: JSON.stringify(body)
+  });
+}
+
+export function updateMenuItem(restaurantId: string, menuItemId: string, body: MenuItemForm) {
+  return request<MenuItem>(`/admin/restaurants/${restaurantId}/menu/${menuItemId}`, {
+    method: "PATCH",
     body: JSON.stringify(body)
   });
 }
@@ -286,6 +328,13 @@ export const demoRestaurant: Restaurant = {
   phone: "021-555-0199",
   whatsappNumber: "6281234567890",
   qrisImageUrl: "https://placehold.co/560x560?text=QRIS+Teras+Rempah",
+  closedDates: [],
+  operatingHours: Array.from({ length: 7 }).map((_, dayOfWeek) => ({
+    dayOfWeek,
+    openTime: dayOfWeek === 0 ? "10:00" : "09:00",
+    closeTime: dayOfWeek === 0 ? "20:00" : "22:00",
+    isClosed: false
+  })),
   bankName: "BCA",
   bankAccountNumber: "1234567890",
   bankAccountName: "PT Teras Rempah Indonesia",
@@ -298,6 +347,7 @@ export const demoRestaurant: Restaurant = {
       name: "Nasi Bakar Ayam Kemangi",
       description: "Nasi bakar aromatik dengan ayam suwir dan sambal terasi.",
       category: "Makanan Utama",
+      labels: ["Favorit"],
       price: 48000,
       imageUrl: "https://placehold.co/720x480?text=Nasi+Bakar",
       isAvailable: true
@@ -307,6 +357,7 @@ export const demoRestaurant: Restaurant = {
       name: "Iga Bakar Madu",
       description: "Iga sapi bakar dengan glasir madu rempah.",
       category: "Makanan Utama",
+      labels: [],
       price: 118000,
       imageUrl: "https://placehold.co/720x480?text=Iga+Bakar",
       isAvailable: true
@@ -316,6 +367,7 @@ export const demoRestaurant: Restaurant = {
       name: "Tahu Telur Petis",
       description: "Tahu telur renyah dengan petis dan kacang sangrai.",
       category: "Pembuka",
+      labels: ["Recommended"],
       price: 38000,
       imageUrl: "https://placehold.co/720x480?text=Tahu+Telur",
       isAvailable: true
@@ -325,6 +377,7 @@ export const demoRestaurant: Restaurant = {
       name: "Es Kopi Pandan",
       description: "Kopi susu dingin dengan sirup pandan rumah.",
       category: "Minuman",
+      labels: [],
       price: 32000,
       imageUrl: "https://placehold.co/720x480?text=Es+Kopi+Pandan",
       isAvailable: true

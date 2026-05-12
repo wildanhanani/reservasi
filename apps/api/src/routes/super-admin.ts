@@ -4,18 +4,33 @@ import { z } from "zod";
 import { prisma } from "@reservasi/db";
 import { requireAuth } from "../services/auth.js";
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[^0-9+]/g, ""))
+  .refine((value) => value.replace(/\D/g, "").length >= 8, "Nomor minimal 8 digit.");
+
 const createRestaurantBody = z.object({
-  ownerName: z.string().min(2),
-  ownerEmail: z.string().email(),
-  ownerPhone: z.string().min(8),
-  ownerPassword: z.string().min(8).optional().or(z.literal("")),
-  restaurantName: z.string().min(2),
-  slug: z.string().regex(/^[a-z0-9-]+$/),
-  description: z.string().min(5),
-  address: z.string().min(5),
-  phone: z.string().min(5),
-  whatsappNumber: z.string().min(8)
+  ownerName: z.string().trim().min(2, "Nama admin minimal 2 karakter."),
+  ownerEmail: z.string().trim().email("Email login admin belum valid."),
+  ownerPhone: phoneSchema,
+  ownerPassword: z.string().min(8, "Password awal admin minimal 8 karakter.").optional().or(z.literal("")),
+  restaurantName: z.string().trim().min(2, "Nama resto minimal 2 karakter."),
+  slug: z.string().trim().regex(/^[a-z0-9-]+$/, "Path resto hanya boleh huruf kecil, angka, dan strip."),
+  description: z.string().trim().optional().or(z.literal("")),
+  address: z.string().trim().min(2, "Alamat minimal 2 karakter."),
+  phone: phoneSchema,
+  whatsappNumber: phoneSchema.optional().or(z.literal(""))
 });
+
+function defaultOperatingHours() {
+  return Array.from({ length: 7 }).map((_, dayOfWeek) => ({
+    dayOfWeek,
+    openTime: dayOfWeek === 0 ? "10:00" : "09:00",
+    closeTime: dayOfWeek === 0 ? "20:00" : "22:00",
+    isClosed: false
+  }));
+}
 
 const restaurantParams = z.object({ restaurantId: z.string().min(1) });
 
@@ -132,6 +147,8 @@ export async function superAdminRoutes(app: FastifyInstance) {
     if (!session) return;
 
     const body = createRestaurantBody.parse(request.body);
+    const restaurantPhone = body.phone.replace(/[^0-9+]/g, "");
+    const restaurantWhatsapp = (body.whatsappNumber || body.phone).replace(/[^0-9+]/g, "");
     const existing = await prisma.$transaction(async (tx) => {
       const [emailUser, slugRestaurant] = await Promise.all([
         tx.user.findUnique({ where: { email: body.ownerEmail } }),
@@ -164,11 +181,18 @@ export async function superAdminRoutes(app: FastifyInstance) {
           ownerId: owner.id,
           name: body.restaurantName,
           slug: body.slug,
-          description: body.description,
+          description: body.description || `Reservasi online ${body.restaurantName}`,
           address: body.address,
-          phone: body.phone,
-          whatsappNumber: body.whatsappNumber
+          phone: restaurantPhone,
+          whatsappNumber: restaurantWhatsapp
         }
+      });
+
+      await tx.operatingHour.createMany({
+        data: defaultOperatingHours().map((hour) => ({
+          restaurantId: restaurant.id,
+          ...hour
+        }))
       });
 
       await tx.adminProfile.create({

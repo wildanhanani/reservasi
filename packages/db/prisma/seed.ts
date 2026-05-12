@@ -104,6 +104,7 @@ async function main() {
           restaurantId: restaurant.id,
           name,
           category,
+          labels: name === "Nasi Bakar Ayam Kemangi" ? ["Favorit"] : [],
           price,
           description,
           imageUrl: `https://placehold.co/720x480?text=${encodeURIComponent(name)}`

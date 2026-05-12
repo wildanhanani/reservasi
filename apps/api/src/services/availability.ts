@@ -21,7 +21,30 @@ export function reservationDateTime(date: string, time: string) {
   return new Date(`${date}T${time}:00.000Z`);
 }
 
+export async function isRestaurantClosed(restaurantId: string, date: string) {
+  const targetDate = slotDate(date);
+  const dayOfWeek = targetDate.getUTCDay();
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: restaurantId },
+    select: {
+      closedDates: true,
+      operatingHours: {
+        where: { dayOfWeek },
+        take: 1
+      }
+    }
+  });
+
+  if (!restaurant) return true;
+  if (restaurant.closedDates.includes(date)) return true;
+  return restaurant.operatingHours[0]?.isClosed ?? false;
+}
+
 export async function getAvailableSlots(restaurantId: string, date: string, partySize = 1) {
+  if (await isRestaurantClosed(restaurantId, date)) {
+    return [];
+  }
+
   const startDate = slotDate(date);
   const endDate = nextSlotDate(date);
   let slots = await prisma.reservationSlot.findMany({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, Ban, Building2, CircleDollarSign, ExternalLink, Plus, ReceiptText, RefreshCw, Store } from "lucide-react";
 import { createRestaurant, getSuperAdminDashboard, type CreateRestaurantBody, type SuperAdminDashboard, updateRestaurantStatus } from "@/lib/api";
 import { formatDateTime, rupiah } from "@/lib/utils";
@@ -31,8 +31,7 @@ const initialCreateForm: CreateRestaurantBody = {
   slug: "",
   description: "",
   address: "",
-  phone: "",
-  whatsappNumber: ""
+  phone: ""
 };
 
 function slugify(value: string) {
@@ -52,6 +51,8 @@ export function SuperAdminDashboard() {
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState<CreateRestaurantBody>(initialCreateForm);
   const [message, setMessage] = useState("");
+  const [recentCreatedSlug, setRecentCreatedSlug] = useState<string | null>(null);
+  const adminRestaurantCardRef = useRef<HTMLDivElement | null>(null);
 
   async function load() {
     setLoading(true);
@@ -106,11 +107,15 @@ export function SuperAdminDashboard() {
       if (!slug) {
         throw new Error("Path resto wajib diisi.");
       }
-      const payload = { ...createForm, slug };
+      const payload = { ...createForm, slug, whatsappNumber: createForm.phone };
       await createRestaurant(payload);
       setCreateForm(initialCreateForm);
+      setRecentCreatedSlug(slug);
       await load();
-      setMessage(`Resto berhasil dibuat. Link reservasi: /${slug}`);
+      setMessage(`Resto berhasil dibuat dan sudah muncul di card Admin resto di bawah. Link reservasi: /${slug}`);
+      window.setTimeout(() => {
+        adminRestaurantCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Gagal membuat resto baru.");
     } finally {
@@ -131,13 +136,13 @@ export function SuperAdminDashboard() {
     <main className="min-h-screen bg-[#f6f9fc] text-[#061b31]">
       <section className="relative overflow-hidden border-b border-white/70 bg-white">
         <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_20%_20%,rgba(83,58,253,0.14),transparent_32%),radial-gradient(circle_at_80%_0%,rgba(249,107,238,0.14),transparent_28%)]" />
-        <div className="relative mx-auto flex max-w-7xl flex-col gap-3 px-4 py-8 md:flex-row md:items-end md:justify-between md:px-8">
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:py-8 md:flex-row md:items-end md:justify-between md:px-8">
           <div>
             <p className="inline-flex rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#533afd]">Super admin</p>
-            <h1 className="mt-4 text-3xl font-light tracking-[-0.04em] sm:text-5xl">Kontrol admin resto & transaksi</h1>
+            <h1 className="mt-4 text-2xl font-light tracking-[-0.04em] sm:text-5xl">Kontrol admin resto & transaksi</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Kelola status resto, pantau transaksi, dan lihat rekapan profit.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Button variant="outline" onClick={() => load()} disabled={loading}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
@@ -146,10 +151,10 @@ export function SuperAdminDashboard() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 py-6 md:px-8">
+      <section className="mx-auto grid max-w-7xl gap-5 px-3 py-5 sm:gap-6 sm:px-4 sm:py-6 md:px-8">
         {message ? <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 text-sm shadow-sm">{message}</div> : null}
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-2 sm:gap-4 lg:grid-cols-4">
           <Metric icon={<Store className="h-5 w-5" />} title="Total resto" value={data.metrics.restaurantCount} />
           <Metric icon={<BadgeCheck className="h-5 w-5" />} title="Resto aktif" value={data.metrics.activeRestaurantCount} />
           <Metric icon={<ReceiptText className="h-5 w-5" />} title="Transaksi" value={data.metrics.transactionCount} />
@@ -158,49 +163,53 @@ export function SuperAdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5" /> Tambah resto baru</CardTitle>
+            <CardTitle className="flex flex-wrap items-center gap-2"><Plus className="h-5 w-5" /> Tambah resto baru</CardTitle>
             <CardDescription>Buat resto baru sekali klik. Link reservasinya otomatis jadi path sesuai nama/path resto, contoh: <span className="font-semibold text-slate-700">/kedai-baru</span>.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="grid gap-4" onSubmit={submitCreateRestaurant}>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
                 <Field label="Nama resto">
                   <Input required value={createForm.restaurantName} onChange={(event) => updateCreateForm("restaurantName", event.target.value)} placeholder="Contoh: Kedai Amarta" />
+                  <p className="min-h-5 text-xs text-transparent">.</p>
                 </Field>
                 <Field label="Path / slug resto">
-                  <Input required pattern="[a-z0-9-]+" value={createForm.slug} onChange={(event) => updateCreateForm("slug", slugify(event.target.value))} placeholder="kedai-amarta" />
-                  <p className="mt-1 text-xs text-muted-foreground">Nanti halaman reservasi ada di <span className="font-semibold text-slate-700">/{createForm.slug || "nama-resto"}</span></p>
+                  <Input required value={createForm.slug} onChange={(event) => updateCreateForm("slug", slugify(event.target.value))} placeholder="kedai-amarta" />
+                  <p className="min-h-5 text-xs text-muted-foreground">Nanti halaman reservasi ada di <span className="font-semibold text-slate-700">/{createForm.slug || "nama-resto"}</span></p>
                 </Field>
                 <Field label="Alamat">
                   <Input required value={createForm.address} onChange={(event) => updateCreateForm("address", event.target.value)} placeholder="Jl. Contoh No. 1" />
+                  <p className="min-h-5 text-xs text-transparent">.</p>
                 </Field>
-                <Field label="No. telepon resto">
-                  <Input required value={createForm.phone} onChange={(event) => updateCreateForm("phone", event.target.value)} placeholder="021xxxx / 08xxxx" />
+                <Field label="No. telepon / WhatsApp resto">
+                  <Input required value={createForm.phone} onChange={(event) => updateCreateForm("phone", event.target.value)} placeholder="62812xxxx" />
+                  <p className="min-h-5 text-xs text-muted-foreground">Nomor ini dipakai untuk kontak resto sekaligus notifikasi WhatsApp.</p>
                 </Field>
-                <Field label="WhatsApp resto">
-                  <Input required value={createForm.whatsappNumber} onChange={(event) => updateCreateForm("whatsappNumber", event.target.value)} placeholder="62812xxxx" />
-                </Field>
-                <Field label="Deskripsi singkat">
-                  <Input required value={createForm.description} onChange={(event) => updateCreateForm("description", event.target.value)} placeholder="Reservasi online untuk resto..." />
+                <Field label="Deskripsi singkat (opsional)" className="lg:col-span-2">
+                  <Input value={createForm.description} onChange={(event) => updateCreateForm("description", event.target.value)} placeholder="Boleh dikosongkan" />
                 </Field>
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
                 <p className="mb-3 text-sm font-semibold">Admin/owner resto</p>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Nama admin">
-                    <Input required value={createForm.ownerName} onChange={(event) => updateCreateForm("ownerName", event.target.value)} placeholder="Nama pemilik/admin" />
-                  </Field>
-                  <Field label="Email login admin">
-                    <Input required type="email" value={createForm.ownerEmail} onChange={(event) => updateCreateForm("ownerEmail", event.target.value)} placeholder="admin@resto.com" />
-                  </Field>
-                  <Field label="No. HP admin">
-                    <Input required value={createForm.ownerPhone} onChange={(event) => updateCreateForm("ownerPhone", event.target.value)} placeholder="62812xxxx" />
-                  </Field>
-                  <Field label="Password awal admin">
-                    <Input type="password" minLength={8} value={createForm.ownerPassword ?? ""} onChange={(event) => updateCreateForm("ownerPassword", event.target.value)} placeholder="Minimal 8 karakter" />
-                    <p className="mt-1 text-xs text-muted-foreground">Kosongkan kalau mau pakai password default dev sementara.</p>
-                  </Field>
+                <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+                  <div className="grid gap-4">
+                    <Field label="Nama admin">
+                      <Input required value={createForm.ownerName} onChange={(event) => updateCreateForm("ownerName", event.target.value)} placeholder="Nama pemilik/admin" />
+                    </Field>
+                    <Field label="No. HP admin">
+                      <Input required value={createForm.ownerPhone} onChange={(event) => updateCreateForm("ownerPhone", event.target.value)} placeholder="62812xxxx" />
+                    </Field>
+                  </div>
+                  <div className="grid gap-4">
+                    <Field label="Email login admin">
+                      <Input required type="email" value={createForm.ownerEmail} onChange={(event) => updateCreateForm("ownerEmail", event.target.value)} placeholder="admin@resto.com" />
+                    </Field>
+                    <Field label="Password awal admin">
+                      <Input type="password" minLength={8} value={createForm.ownerPassword ?? ""} onChange={(event) => updateCreateForm("ownerPassword", event.target.value)} placeholder="Minimal 8 karakter" />
+                      <p className="min-h-5 text-xs text-muted-foreground">Kosongkan kalau mau pakai password default dev sementara.</p>
+                    </Field>
+                  </div>
                 </div>
               </div>
 
@@ -209,15 +218,16 @@ export function SuperAdminDashboard() {
                   <Plus className="mr-2 h-4 w-4" /> {creating ? "Menyimpan..." : "Tambah resto"}
                 </Button>
                 <p className="text-xs text-muted-foreground">Setelah dibuat, resto muncul di daftar bawah dan bisa dibuka via path publik.</p>
+                {message ? <p className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 whitespace-pre-line">{message}</p> : null}
               </div>
             </form>
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div ref={adminRestaurantCardRef} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] lg:gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Admin resto</CardTitle>
+              <CardTitle className="flex flex-wrap items-center gap-2"><Building2 className="h-5 w-5" /> Admin resto</CardTitle>
               <CardDescription>Aktifkan/nonaktifkan resto dan cek owner/admin yang mengelola.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -225,14 +235,20 @@ export function SuperAdminDashboard() {
               {data.restaurants.length === 0 && !loading ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-muted-foreground">Belum ada resto.</div>
               ) : null}
-              {data.restaurants.map((restaurant) => (
-                <div key={restaurant.id} className="grid gap-3 rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm md:grid-cols-[1fr_auto]">
+              {data.restaurants.map((restaurant) => {
+                const isRecentlyCreated = recentCreatedSlug === restaurant.slug;
+
+                return (
+                <div key={restaurant.id} className={`grid gap-3 rounded-2xl border p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] ${isRecentlyCreated ? "border-emerald-300 bg-emerald-50/90 ring-2 ring-emerald-100" : "border-slate-200 bg-white/85"}`}>
                   <div className="space-y-1 text-sm">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold">{restaurant.name}</p>
                       <span className={`rounded-full px-2 py-0.5 text-xs ${restaurant.isActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                         {restaurant.isActive ? "Aktif" : "Nonaktif"}
                       </span>
+                      {isRecentlyCreated ? (
+                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">Baru dibuat</span>
+                      ) : null}
                     </div>
                     <p className="text-muted-foreground">/{restaurant.slug} · {restaurant.address}</p>
                     <p>Owner: {restaurant.owner.name} ({restaurant.owner.email})</p>
@@ -243,7 +259,7 @@ export function SuperAdminDashboard() {
                       <span className="rounded-full bg-slate-100 px-3 py-1">Profit {rupiah(restaurant.estimatedProfit)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 md:flex-col md:items-stretch">
+                  <div className="grid gap-2 sm:flex sm:flex-wrap md:flex-col md:items-stretch">
                     {restaurant.isActive ? (
                       <Button variant="destructive" onClick={() => toggleRestaurant(restaurant.id, false)} disabled={savingId === restaurant.id}>
                         <Ban className="mr-2 h-4 w-4" /> Nonaktifkan
@@ -261,7 +277,8 @@ export function SuperAdminDashboard() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -290,13 +307,13 @@ export function SuperAdminDashboard() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-muted-foreground">Belum ada transaksi.</div>
             ) : null}
             {data.transactions.map((transaction) => (
-              <div key={transaction.id} className="grid gap-2 rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm text-sm md:grid-cols-[1fr_auto]">
+              <div key={transaction.id} className="grid gap-2 rounded-2xl border border-slate-200 bg-white/85 p-4 text-sm shadow-sm sm:grid-cols-[minmax(0,1fr)_auto]">
                 <div>
                   <p className="font-semibold">{transaction.code} · {transaction.restaurantName}</p>
                   <p className="text-muted-foreground">{transaction.customerName} · {formatDateTime(transaction.reservationAt)} · {transaction.itemCount} item</p>
                   <p className="text-muted-foreground">Status: {transaction.status} / {transaction.payment?.status ?? "-"}</p>
                 </div>
-                <div className="text-left md:text-right">
+                <div className="text-left sm:text-right">
                   <p className="font-semibold">{rupiah(transaction.payment?.amountPaid ?? 0)}</p>
                   <p className="text-muted-foreground">Tagihan {rupiah(transaction.payment?.amountDue ?? transaction.paymentAmount)}</p>
                 </div>
@@ -309,9 +326,9 @@ export function SuperAdminDashboard() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <label className="grid gap-1 text-sm font-medium text-slate-700">
+    <label className={`grid gap-1 text-sm font-medium text-slate-700 ${className}`}>
       {label}
       {children}
     </label>
@@ -320,12 +337,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Metric({ icon, title, value }: { icon: React.ReactNode; title: string; value: React.ReactNode }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="rounded-full bg-primary/10 p-2 text-primary">{icon}</div>
-        <div>
+    <Card className="overflow-hidden">
+      <CardContent className="flex min-w-0 items-center gap-3 p-4">
+        <div className="shrink-0 rounded-full bg-primary/10 p-2 text-primary">{icon}</div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-semibold">{value}</p>
+          <p className="break-words text-[clamp(1.25rem,4vw,1.75rem)] font-semibold leading-tight tracking-[-0.03em] text-slate-950 [overflow-wrap:anywhere]">{value}</p>
         </div>
       </CardContent>
     </Card>
